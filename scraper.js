@@ -7,21 +7,22 @@ async function run() {
   const website = 'https://www.partybussen.nl/festivals/qlimax';
   const pageData = {};
 
-  const selectorGrongingen = `[name="province-1"]`;
-  const selectorFriesland = `[name="province-2"]`;
-  const selectorDrenthe = `[name="province-3"]`;
-  const selectorOverijssel = `[name="province-4"]`;
-  const selectorFlevoland = `[name="province-5"]`;
-  const selectorGelderland = `[name="province-6"]`;
-  const selectorUtrecht = `[name="province-7"]`;
-  const selectorNoordHolland = `[name="province-8"]`;
-  const selectorZuidHolland = `[name="province-9"]`;
-  const selectorNoordBrabant = `[name="province-10"]`;
-  const selectorZeeland = `[name="province-11"]`;
-  const selectorLimburg = `[name="province-12"]`;
+  const provinces = [
+    { name: 'Groningen', selector: '[name="province-1"]' },
+    { name: 'Friesland', selector: '[name="province-2"]' },
+    { name: 'Drenthe', selector: '[name="province-3"]' },
+    { name: 'Overijssel', selector: '[name="province-4"]' },
+    { name: 'Flevoland', selector: '[name="province-5"]' },
+    { name: 'Gelderland', selector: '[name="province-6"]' },
+    { name: 'Utrecht', selector: '[name="province-7"]' },
+    { name: 'Noord-Holland', selector: '[name="province-8"]' },
+    { name: 'Zuid-Holland', selector: '[name="province-9"]' },
+    { name: 'Noord-Brabant', selector: '[name="province-10"]' },
+    { name: 'Zeeland', selector: '[name="province-11"]' },
+    { name: 'Limburg', selector: '[name="province-12"]' },
+  ];
 
-  const selectorsProvinces = [selectorGrongingen, selectorFriesland, selectorDrenthe, selectorOverijssel, selectorFlevoland, selectorGelderland, selectorUtrecht, selectorNoordHolland, selectorZuidHolland, selectorNoordBrabant, selectorZeeland, selectorLimburg];
-
+  let allProvinces = [];
   let allCities = [];
   let allLocations = [];
   let allPrices = [];
@@ -42,10 +43,10 @@ async function run() {
       return formattedDate;
     };
 
-    for (const province of selectorsProvinces) {
+    for (const province of provinces) {
       // RETRIEVING CITY DATA
-      const targetCity = await page.evaluate((province) => {
-        const elements = document.querySelectorAll(`${province} .locatie`);
+      const targetCity = await page.evaluate((selector) => {
+        const elements = document.querySelectorAll(`${selector} .locatie`);
         return Array.from(elements).map((element) => {
           function findFirstTextNode(node) {
             if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
@@ -61,17 +62,17 @@ async function run() {
           }
           return findFirstTextNode(element);
         });
-      }, province);
+      }, province.selector);
 
       // RETRIEVING LOCATION DATA
-      const targetLocation = await page.evaluate((province) => {
-        const elements = document.querySelectorAll(`${province} .loc-naam`);
+      const targetLocation = await page.evaluate((selector) => {
+        const elements = document.querySelectorAll(`${selector} .loc-naam`);
         return Array.from(elements).map((element) => element.textContent.trim());
-      }, province);
+      }, province.selector);
 
       // RETRIEVING PRICE DATA
-      const targetPrice = await page.evaluate((province) => {
-        const elements = document.querySelectorAll(`${province} .prijs`);
+      const targetPrice = await page.evaluate((selector) => {
+        const elements = document.querySelectorAll(`${selector} .prijs`);
         return Array.from(elements).map((element) => {
           let text = '';
           element.childNodes.forEach((node) => {
@@ -81,8 +82,11 @@ async function run() {
           });
           return text;
         });
-      }, province);
+      }, province.selector);
 
+      // Add the province name for each city/location/price
+      const provinceCount = targetCity.length;
+      allProvinces.push(...Array(provinceCount).fill(province.name));
       allCities.push(...targetCity);
       allLocations.push(...targetLocation);
       allPrices.push(...targetPrice);
@@ -91,11 +95,11 @@ async function run() {
     // CREATE EXCEL FILE
     if (allCities.length === allLocations.length && allLocations.length === allPrices.length) {
       const workBook = xlsx.utils.book_new();
-      const data = [['stad', 'locatie', 'prijs', 'scrapedatum']];
+      const data = [['provincies', 'stad', 'locatie', 'prijs', 'scrapedatum']];
       const formattedDate = getScrapeDate();
 
       for (let i = 0; i < allCities.length; i++) {
-        data.push([allCities[i], allLocations[i], allPrices[i], formattedDate]);
+        data.push([allProvinces[i], allCities[i], allLocations[i], allPrices[i], formattedDate]);
       }
 
       const workSheet = xlsx.utils.aoa_to_sheet(data);
@@ -105,6 +109,8 @@ async function run() {
       const filePath = './data.xlsx';
       xlsx.writeFile(workBook, filePath);
       console.log('Excel file created successfully.');
+      console.log('Full obj: ' + allProvinces);
+      console.log('Indexed: ' + allProvinces[3]);
     } else {
       console.log('Data length mismatch, cannot write to Excel.');
     }
