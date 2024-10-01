@@ -24,23 +24,6 @@ async function run() {
       return formattedDate;
     };
 
-    /*
-    const provinces = {
-      'province-1': 'groningen',
-      'province-2': 'friesland',
-      'province-3': 'drenthe',
-      'province-4': 'overijssel',
-      'province-5': 'flevoland',
-      'province-6': 'gelderland',
-      'province-7': 'utrecht',
-      'province-8': 'noord-holland',
-      'province-9': 'zuid-holland',
-      'province-10': 'noord-brabant',
-      'province-11': 'zeeland',
-      'province-12': 'limburg',
-    };
-    */
-
     const selectorGrongingen = `[name="province-1"]`;
     const selectorFriesland = `[name="province-2"]`;
     const selectorDrenthe = `[name="province-3"]`;
@@ -56,9 +39,9 @@ async function run() {
 
     const selectorsProvinces = [selectorGrongingen, selectorFriesland, selectorDrenthe, selectorOverijssel, selectorFlevoland, selectorGelderland, selectorUtrecht, selectorNoordHolland, selectorZuidHolland, selectorNoordBrabant, selectorZeeland, selectorLimburg];
 
-    // RETRIEVING CITY DATA
     for (const province of selectorsProvinces) {
-      const targetCity = await page.evaluate(() => {
+      // RETRIEVING CITY DATA
+      const targetCity = await page.evaluate((province) => {
         const elements = document.querySelectorAll(`${province} .locatie`);
         return Array.from(elements).map((element) => {
           function findFirstTextNode(node) {
@@ -75,16 +58,16 @@ async function run() {
           }
           return findFirstTextNode(element);
         });
-      });
+      }, province);
 
       // RETRIEVING LOCATION DATA
-      const targetLocation = await page.evaluate(() => {
+      const targetLocation = await page.evaluate((province) => {
         const elements = document.querySelectorAll(`${province} .loc-naam`);
         return Array.from(elements).map((element) => element.textContent.trim());
-      });
+      }, province);
 
       // RETRIEVING PRICE DATA
-      const targetPrice = await page.evaluate(() => {
+      const targetPrice = await page.evaluate((province) => {
         const elements = document.querySelectorAll(`${province} .prijs`);
         return Array.from(elements).map((element) => {
           let text = '';
@@ -95,28 +78,30 @@ async function run() {
           });
           return text;
         });
-      });
-    }
+      }, province);
 
-    // CREATE EXCEL FILE
-    if (targetCity.length === targetLocation.length && targetLocation.length === targetPrice.length) {
-      const workBook = xlsx.utils.book_new();
-      const data = [['stad', 'locatie', 'prijs', 'scrapedatum']];
-      const formattedDate = getScrapeDate();
+      // CREATE EXCEL FILE
+      if (targetCity.length === targetLocation.length && targetLocation.length === targetPrice.length) {
+        const workBook = xlsx.utils.book_new();
+        const data = [['stad', 'locatie', 'prijs', 'scrapedatum']];
+        const formattedDate = getScrapeDate();
 
-      for (let i = 0; i < targetCity.length; i++) {
-        data.push([targetCity[i], targetLocation[i], targetPrice[i], formattedDate]);
+        for (let i = 0; i < targetCity.length; i++) {
+          data.push([targetCity[i], targetLocation[i], targetPrice[i], formattedDate]);
+        }
+
+        const workSheet = xlsx.utils.aoa_to_sheet(data);
+
+        xlsx.utils.book_append_sheet(workBook, workSheet, 'Qlimax Data');
+
+        const filePath = './data.xlsx';
+        xlsx.writeFile(workBook, filePath);
+        console.log('Excel file created successfully.');
+      } else {
+        console.log('Data length mismatch, cannot write to Excel.');
       }
 
-      const workSheet = xlsx.utils.aoa_to_sheet(data);
-
-      xlsx.utils.book_append_sheet(workBook, workSheet, 'Qlimax Data');
-
-      const filePath = './data.xlsx';
-      xlsx.writeFile(workBook, filePath);
-      console.log('Excel file created successfully.');
-    } else {
-      console.log('Data length mismatch, cannot write to Excel.');
+      // You can process targetCity, targetLocation, and targetPrice here if needed
     }
   } catch (error) {
     console.log('Error accessing website: ' + error);
