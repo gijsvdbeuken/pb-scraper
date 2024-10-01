@@ -1,12 +1,30 @@
 const puppeteer = require('puppeteer');
 const xlsx = require('xlsx');
-//const fs = require("fs");
 
 async function run() {
   const browser = await puppeteer.launch();
   const page = await browser.newPage();
   const website = 'https://www.partybussen.nl/festivals/qlimax';
   const pageData = {};
+
+  const selectorGrongingen = `[name="province-1"]`;
+  const selectorFriesland = `[name="province-2"]`;
+  const selectorDrenthe = `[name="province-3"]`;
+  const selectorOverijssel = `[name="province-4"]`;
+  const selectorFlevoland = `[name="province-5"]`;
+  const selectorGelderland = `[name="province-6"]`;
+  const selectorUtrecht = `[name="province-7"]`;
+  const selectorNoordHolland = `[name="province-8"]`;
+  const selectorZuidHolland = `[name="province-9"]`;
+  const selectorNoordBrabant = `[name="province-10"]`;
+  const selectorZeeland = `[name="province-11"]`;
+  const selectorLimburg = `[name="province-12"]`;
+
+  const selectorsProvinces = [selectorGrongingen, selectorFriesland, selectorDrenthe, selectorOverijssel, selectorFlevoland, selectorGelderland, selectorUtrecht, selectorNoordHolland, selectorZuidHolland, selectorNoordBrabant, selectorZeeland, selectorLimburg];
+
+  let allCities = [];
+  let allLocations = [];
+  let allPrices = [];
 
   try {
     await page.goto(website);
@@ -23,21 +41,6 @@ async function run() {
       const formattedDate = `${day} ${month}`;
       return formattedDate;
     };
-
-    const selectorGrongingen = `[name="province-1"]`;
-    const selectorFriesland = `[name="province-2"]`;
-    const selectorDrenthe = `[name="province-3"]`;
-    const selectorOverijssel = `[name="province-4"]`;
-    const selectorFlevoland = `[name="province-5"]`;
-    const selectorGelderland = `[name="province-6"]`;
-    const selectorUtrecht = `[name="province-7"]`;
-    const selectorNoordHolland = `[name="province-8"]`;
-    const selectorZuidHolland = `[name="province-9"]`;
-    const selectorNoordBrabant = `[name="province-10"]`;
-    const selectorZeeland = `[name="province-11"]`;
-    const selectorLimburg = `[name="province-12"]`;
-
-    const selectorsProvinces = [selectorGrongingen, selectorFriesland, selectorDrenthe, selectorOverijssel, selectorFlevoland, selectorGelderland, selectorUtrecht, selectorNoordHolland, selectorZuidHolland, selectorNoordBrabant, selectorZeeland, selectorLimburg];
 
     for (const province of selectorsProvinces) {
       // RETRIEVING CITY DATA
@@ -80,28 +83,30 @@ async function run() {
         });
       }, province);
 
-      // CREATE EXCEL FILE
-      if (targetCity.length === targetLocation.length && targetLocation.length === targetPrice.length) {
-        const workBook = xlsx.utils.book_new();
-        const data = [['stad', 'locatie', 'prijs', 'scrapedatum']];
-        const formattedDate = getScrapeDate();
+      allCities.push(...targetCity);
+      allLocations.push(...targetLocation);
+      allPrices.push(...targetPrice);
+    }
 
-        for (let i = 0; i < targetCity.length; i++) {
-          data.push([targetCity[i], targetLocation[i], targetPrice[i], formattedDate]);
-        }
+    // CREATE EXCEL FILE
+    if (allCities.length === allLocations.length && allLocations.length === allPrices.length) {
+      const workBook = xlsx.utils.book_new();
+      const data = [['stad', 'locatie', 'prijs', 'scrapedatum']];
+      const formattedDate = getScrapeDate();
 
-        const workSheet = xlsx.utils.aoa_to_sheet(data);
-
-        xlsx.utils.book_append_sheet(workBook, workSheet, 'Qlimax Data');
-
-        const filePath = './data.xlsx';
-        xlsx.writeFile(workBook, filePath);
-        console.log('Excel file created successfully.');
-      } else {
-        console.log('Data length mismatch, cannot write to Excel.');
+      for (let i = 0; i < allCities.length; i++) {
+        data.push([allCities[i], allLocations[i], allPrices[i], formattedDate]);
       }
 
-      // You can process targetCity, targetLocation, and targetPrice here if needed
+      const workSheet = xlsx.utils.aoa_to_sheet(data);
+
+      xlsx.utils.book_append_sheet(workBook, workSheet, 'Qlimax Data');
+
+      const filePath = './data.xlsx';
+      xlsx.writeFile(workBook, filePath);
+      console.log('Excel file created successfully.');
+    } else {
+      console.log('Data length mismatch, cannot write to Excel.');
     }
   } catch (error) {
     console.log('Error accessing website: ' + error);
