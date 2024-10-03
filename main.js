@@ -1,13 +1,14 @@
 const puppeteer = require('puppeteer');
-const xlsx = require('xlsx');
 const fetchBoardingLocations = require('./fetchElevenTravelData');
+const createExcelFile = require('./utilities/createExcelFile');
 
 async function run() {
+  // PREPARE SCRAPER
   const browser = await puppeteer.launch();
-
   const pbPage = await browser.newPage();
   const pbWebsite = 'https://www.partybussen.nl/festivals/qlimax';
   const pbPageData = {};
+  const data = [['provincies', 'stad', 'locatie_pb', 'locatie_et', 'locatie_match', 'prijs_pb', 'prijs_et', 'prijs_verschil', 'scrape_datum']];
 
   const provinces = [
     { name: 'Groningen', selector: '[name="province-1"]' },
@@ -29,6 +30,7 @@ async function run() {
   let pbLocations = [];
   let pbPrices = [];
 
+  // DATE FUNCTION
   const scrapeDate = () => {
     const currentDate = new Date();
     const day = currentDate.getDate();
@@ -39,6 +41,7 @@ async function run() {
     return formattedDate;
   };
 
+  // OBTAIN DATA
   try {
     await pbPage.goto(pbWebsite);
     await pbPage.waitForSelector('.columns.small-12.medium-8');
@@ -94,8 +97,6 @@ async function run() {
     if (pbCities.length === pbLocations.length && pbLocations.length === pbPrices.length) {
       let { cities, locations, prices } = await fetchBoardingLocations();
 
-      const workBook = xlsx.utils.book_new();
-      const data = [['provincies', 'stad', 'locatie_pb', 'locatie_et', 'locatie_match', 'prijs_pb', 'prijs_et', 'prijs_verschil', 'scrape_datum']];
       const formattedDate = scrapeDate();
 
       function convertStringToFloat(str) {
@@ -136,27 +137,10 @@ async function run() {
             match = 'Hoog';
           }
         }
-
         data.push([pbProvinces[i], pbCities[i], pbLocations[i], locatie_et, match, pbPrices[i], price_et, prijs_verschil, formattedDate]);
       }
 
-      const workSheet = xlsx.utils.aoa_to_sheet(data);
-
-      for (let rowIndex = 1; rowIndex < data.length; rowIndex++) {
-        const cellValue = data[rowIndex][7]; // Get prijs_verschil value
-
-        if (typeof cellValue === 'number') {
-          const cellAddress = xlsx.utils.encode_cell({ r: rowIndex, c: 7 }); // Column H
-          if (!workSheet[cellAddress]) workSheet[cellAddress] = {};
-          workSheet[cellAddress].s = getCellStyle(cellValue);
-        }
-      }
-
-      xlsx.utils.book_append_sheet(workBook, workSheet, 'Qlimax Data');
-
-      const filePath = './output/data.xlsx';
-      xlsx.writeFile(workBook, filePath, { cellStyles: true });
-      console.log('Excel file created successfully.');
+      createExcelFile(data);
     } else {
       console.log('Data length mismatch, cannot write to Excel.');
     }
