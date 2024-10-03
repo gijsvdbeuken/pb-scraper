@@ -1,6 +1,6 @@
 const puppeteer = require('puppeteer');
 const fetchBoardingLocations = require('./fetchElevenTravelData');
-const createExcelFile = require('./utilities/excelFileCreator');
+const xlsxFileWriter = require('./utilities/xlsxFileWriter');
 const locationMatcher = require('./utilities/locationMatcher');
 
 async function run() {
@@ -9,7 +9,6 @@ async function run() {
   const pbPage = await browser.newPage();
   const pbWebsite = 'https://www.partybussen.nl/festivals/qlimax';
   const pbPageData = {};
-  const data = [['provincies', 'stad', 'locatie_pb', 'locatie_et', 'locatie_match', 'prijs_pb', 'prijs_et', 'prijs_verschil', 'scrape_datum']];
 
   const provinces = [
     { name: 'Groningen', selector: '[name="province-1"]' },
@@ -104,7 +103,7 @@ async function run() {
 
       const finalData = [['provincies', 'stad', 'locatie_pb', 'locatie_et', 'locatie_match', 'prijs_pb', 'prijs_et', 'prijs_verschil', 'scrape_datum'], ...matchedData];
 
-      createExcelFile(finalData);
+      xlsxFileWriter(finalData);
     } else {
       console.log('Data length mismatch, cannot write to Excel.');
     }
