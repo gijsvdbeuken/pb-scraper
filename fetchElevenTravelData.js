@@ -27,31 +27,31 @@ async function fetchBoardingLocations() {
     const htmlString = data.html;
     const $ = cheerio.load(htmlString);
 
-    const cities = [];
+    const etCities = [];
     $('span.city').each((index, element) => {
-      cities.push($(element).text());
+      etCities.push($(element).text());
     });
 
-    const locations = [];
+    const etLocations = [];
     $('span.detail').each((index, element) => {
-      locations.push($(element).text());
+      etLocations.push($(element).text());
     });
 
     const picesDouble = [];
     $('span.new_price').each((index, element) => {
       picesDouble.push($(element).text());
     });
-    const prices = picesDouble.filter((_, index) => index % 2 === 0);
+    const etPrices = picesDouble.filter((_, index) => index % 2 === 0);
 
-    if (cities.length !== locations.length || cities.length !== prices.length) {
-      console.error('Amount of records do not match: ' + 'Cities: ' + cities.length + ', Lcations: ' + locations.length + ', Prices: ' + prices.length);
+    if (etCities.length !== etLocations.length || etCities.length !== etPrices.length) {
+      console.error('Amount of records do not match: ' + 'Cities: ' + etCities.length + ', Lcations: ' + etLocations.length + ', Prices: ' + etPrices.length);
       return { cities: [], locations: [], prices: [] };
     }
 
-    return { cities, locations, prices };
+    return { etCities, etLocations, etPrices };
   } catch (error) {
     console.error('Error:', error);
-    return { cities: [], locations: [], prices: [] };
+    return { etCities: [], etLocations: [], etPrices: [] };
   }
 }
 
