@@ -1,6 +1,7 @@
 const puppeteer = require('puppeteer');
 const fetchBoardingLocations = require('./fetchElevenTravelData');
 const createExcelFile = require('./utilities/excelFileCreator');
+const locationMatcher = require('./utilities/locationMatcher');
 
 async function run() {
   // PREPARE SCRAPER
@@ -96,52 +97,14 @@ async function run() {
 
     console.log('AAA');
     if (pbCities.length === pbLocations.length && pbLocations.length === pbPrices.length) {
-      console.log('BBB');
       let { etCities, etLocations, etPrices } = await fetchBoardingLocations();
-
       const formattedDate = scrapeDate();
 
-      function convertStringToFloat(str) {
-        return parseFloat(str.replace(',', ''), 10);
-      }
+      const matchedData = locationMatcher(pbProvinces, pbCities, pbLocations, pbPrices, etCities, etLocations, etPrices, formattedDate);
 
-      for (let pbIndex = 0; pbIndex < pbCities.length; pbIndex++) {
-        console.log('CCC');
-        let etPrice = 'N/A';
-        let etLocation = 'N/A';
+      const finalData = [['provincies', 'stad', 'locatie_pb', 'locatie_et', 'locatie_match', 'prijs_pb', 'prijs_et', 'prijs_verschil', 'scrape_datum'], ...matchedData];
 
-        let match = 'Normaal';
-        let priceDifference = 'N/A';
-
-        for (let etIndex = 0; etIndex < etCities.length; etIndex++) {
-          console.log('DDD');
-          const cityWordsI = pbCities[pbIndex].toLowerCase().split(' ');
-          const cityWordsJ = etCities[etIndex].toLowerCase().split(' ');
-          const locationWordsI = pbLocations[pbIndex].toLowerCase().split(' ');
-          const locationWordsJ = etLocations[etIndex].toLowerCase().split(' ');
-
-          const cityMatch = cityWordsI.some((wordI) => cityWordsJ.includes(wordI));
-          const locationMatch = locationWordsI.some((wordI) => locationWordsJ.includes(wordI));
-
-          if (cityMatch && locationMatch) {
-            console.log('EEE');
-            etLocation = etLocations[etIndex];
-
-            etPrice = etPrices[etIndex].replace(/[^\d,.-]/g, '').replace(',', '.');
-            const pbPrice = pbPrices[pbIndex].replace(/[^\d,.-]/g, '').replace(',', '.');
-
-            prijs_et_integer = convertStringToFloat(etPrice);
-            prijs_pb_integer = convertStringToFloat(pbPrice);
-
-            priceDifference = prijs_et_integer - prijs_pb_integer;
-
-            match = 'Hoog';
-          }
-        }
-        data.push([pbProvinces[pbIndex], pbCities[pbIndex], pbLocations[pbIndex], etLocation, match, pbPrices[pbIndex], etPrice, priceDifference, formattedDate]);
-      }
-
-      createExcelFile(data);
+      createExcelFile(finalData);
     } else {
       console.log('Data length mismatch, cannot write to Excel.');
     }
