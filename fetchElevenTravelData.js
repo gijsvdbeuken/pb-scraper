@@ -1,4 +1,4 @@
-const fetch = require('node-fetch'); // Only necessary if you're using Node.js
+const fetch = require('node-fetch');
 const cheerio = require('cheerio');
 
 const url = 'https://eleventravel.nl/wp-admin/admin-ajax.php';
@@ -26,16 +26,33 @@ async function fetchBoardingLocations() {
     const data = await response.json();
     const htmlString = data.html;
     const $ = cheerio.load(htmlString);
+
     const cities = [];
     $('span.city').each((index, element) => {
       cities.push($(element).text());
     });
 
-    console.log('Boarding Cities:', cities);
-    //console.log('Success:', data);
+    const locations = [];
+    $('span.detail').each((index, element) => {
+      locations.push($(element).text());
+    });
+
+    const picesDouble = [];
+    $('span.new_price').each((index, element) => {
+      picesDouble.push($(element).text());
+    });
+    const prices = picesDouble.filter((_, index) => index % 2 === 0);
+
+    if (cities.length !== locations.length || cities.length !== prices.length) {
+      console.error('Amount of records do not match: ' + 'Cities: ' + cities.length + ', Lcations: ' + locations.length + ', Prices: ' + prices.length);
+      return { cities: [], locations: [], prices: [] };
+    }
+
+    return { cities, locations, prices };
   } catch (error) {
     console.error('Error:', error);
+    return { cities: [], locations: [], prices: [] };
   }
 }
 
-fetchBoardingLocations();
+module.exports = fetchBoardingLocations;
