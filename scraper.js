@@ -2,9 +2,10 @@ const puppeteer = require('puppeteer');
 const xlsx = require('xlsx');
 
 async function run() {
-  const browser = await puppeteer.launch();
+  const browser = await puppeteer.launch({ headless: false });
   const page = await browser.newPage();
-  const website = 'https://www.partybussen.nl/festivals/qlimax';
+  const website_pb = 'https://www.partybussen.nl/festivals/qlimax';
+  const website_et = 'https://eleventravel.nl/evenementen/qlimax/';
   const pageData = {};
 
   const provinces = [
@@ -27,8 +28,57 @@ async function run() {
   let allLocations = [];
   let allPrices = [];
 
+  // GET ET DATA
   try {
-    await page.goto(website);
+
+    // Rrequest URL: https://eleventravel.nl/wp-admin/admin-ajax.php
+    await page.goto(website_et);
+    await page.waitForSelector('.seperate_boarding_locations');
+    await page.waitForSelector('.CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll');
+
+    const cookieButton = await page.waitForSelector('#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll .CybotCookiebotDialogBodyButton', { visible: true });
+
+    if (cookieButton) {
+      console.log('Cookie button found!');
+      await cookieButton.click();
+      await page.waitForTimeout(5000);
+    }
+
+    /*
+    const showAllButton = await page.waitForSelector('#show_all .btn.btn-primary', { visible: true });
+
+    if (showAllButton) {
+      console.log('Show all button does exist!');
+      await showAllButton.click();
+      await page.waitForTimeout(10000);
+
+      await page.waitForFunction(
+        () => {
+          return document.querySelectorAll('.city').length > 10;
+        },
+        { timeout: 10000 }
+      );
+
+      const targetLocation = await page.evaluate(() => {
+        const elements = document.querySelectorAll('.tickets_table__row__col.name');
+        return Array.from(elements).map((element) => element.textContent.trim());
+      });
+
+      console.log('TEST: ' + targetLocation);
+      
+    }
+    */
+  } catch (error) {
+    console.log('Error: ' + error);
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
+
+  // GET PB DATA
+  try {
+    await page.goto(website_pb);
     await page.waitForSelector('.columns.small-12.medium-8');
 
     pageData.page_title = await page.evaluate(() => document.title);
@@ -78,6 +128,7 @@ async function run() {
           element.childNodes.forEach((node) => {
             if (node.nodeType === Node.TEXT_NODE) {
               text += node.textContent.trim();
+              text = text.replace(/[^0-9,]/g, '');
             }
           });
           return text;
@@ -95,11 +146,11 @@ async function run() {
     // CREATE EXCEL FILE
     if (allCities.length === allLocations.length && allLocations.length === allPrices.length) {
       const workBook = xlsx.utils.book_new();
-      const data = [['provincies', 'stad', 'locatie', 'prijs', 'scrapedatum']];
+      const data = [['provincies', 'stad', 'locatie', 'prijs_pb', 'prijs_et', 'scrape_datum']];
       const formattedDate = getScrapeDate();
 
       for (let i = 0; i < allCities.length; i++) {
-        data.push([allProvinces[i], allCities[i], allLocations[i], allPrices[i], formattedDate]);
+        data.push([allProvinces[i], allCities[i], allLocations[i], allPrices[i], allPrices[i], formattedDate]);
       }
 
       const workSheet = xlsx.utils.aoa_to_sheet(data);
@@ -115,7 +166,7 @@ async function run() {
       console.log('Data length mismatch, cannot write to Excel.');
     }
   } catch (error) {
-    console.log('Error accessing website: ' + error);
+    console.log('Error: ' + error);
   } finally {
     await browser.close();
   }
