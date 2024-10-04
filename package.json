@@ -13,9 +13,11 @@
   "dependencies": {
     "cheerio": "^1.0.0",
     "csv-writer": "^1.6.0",
+    "exceljs": "^4.4.0",
     "fs": "^0.0.1-security",
     "nodemailer": "^6.9.15",
     "puppeteer": "^23.5.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "xlsx-style": "^0.8.13"
   }
 }

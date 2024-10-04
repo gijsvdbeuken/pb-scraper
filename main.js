@@ -1,10 +1,9 @@
 const puppeteer = require('puppeteer');
-const fetchBoardingLocations = require('./fetchElevenTravelData');
+const fetchBoardingLocations = require('./api/fetchElevenTravelData');
 const xlsxFileWriter = require('./utilities/xlsxFileWriter');
 const locationMatcher = require('./utilities/locationMatcher');
 
 async function run() {
-  // PREPARE SCRAPER
   const browser = await puppeteer.launch();
   const pbPage = await browser.newPage();
   const pbWebsite = 'https://www.partybussen.nl/festivals/qlimax';
@@ -30,18 +29,6 @@ async function run() {
   let pbLocations = [];
   let pbPrices = [];
 
-  // DATE FUNCTION
-  const scrapeDate = () => {
-    const currentDate = new Date();
-    const day = currentDate.getDate();
-    const months = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
-    const monthIndex = currentDate.getMonth();
-    const month = months[monthIndex];
-    const formattedDate = `${day} ${month}`;
-    return formattedDate;
-  };
-
-  // OBTAIN DATA
   try {
     await pbPage.goto(pbWebsite);
     await pbPage.waitForSelector('.columns.small-12.medium-8');
@@ -49,7 +36,7 @@ async function run() {
     pbPageData.pageTitle = await pbPage.evaluate(() => document.title);
 
     for (const province of provinces) {
-      const targetCity = await pbPage.evaluate((selector) => {
+      const targetCities = await pbPage.evaluate((selector) => {
         const elements = document.querySelectorAll(`${selector} .locatie`);
         return Array.from(elements).map((element) => {
           function findFirstTextNode(node) {
@@ -68,12 +55,12 @@ async function run() {
         });
       }, province.selector);
 
-      const targetLocation = await pbPage.evaluate((selector) => {
+      const targetLocations = await pbPage.evaluate((selector) => {
         const elements = document.querySelectorAll(`${selector} .loc-naam`);
         return Array.from(elements).map((element) => element.textContent.trim());
       }, province.selector);
 
-      const targetPrice = await pbPage.evaluate((selector) => {
+      const targetPrices = await pbPage.evaluate((selector) => {
         const elements = document.querySelectorAll(`${selector} .prijs`);
         return Array.from(elements).map((element) => {
           let text = '';
@@ -87,25 +74,22 @@ async function run() {
         });
       }, province.selector);
 
-      const provinceCount = targetCity.length;
+      const provinceCount = targetCities.length;
       pbProvinces.push(...Array(provinceCount).fill(province.name));
-      pbCities.push(...targetCity);
-      pbLocations.push(...targetLocation);
-      pbPrices.push(...targetPrice);
+      pbCities.push(...targetCities);
+      pbLocations.push(...targetLocations);
+      pbPrices.push(...targetPrices);
     }
 
-    console.log('AAA');
-    if (pbCities.length === pbLocations.length && pbLocations.length === pbPrices.length) {
+    if (pbCities.length == pbLocations.length && pbLocations.length == pbPrices.length) {
       let { etCities, etLocations, etPrices } = await fetchBoardingLocations();
-      const formattedDate = scrapeDate();
 
-      const matchedData = locationMatcher(pbProvinces, pbCities, pbLocations, pbPrices, etCities, etLocations, etPrices, formattedDate);
-
-      const finalData = [['provincies', 'stad', 'locatie_pb', 'locatie_et', 'locatie_match', 'prijs_pb', 'prijs_et', 'prijs_verschil', 'scrape_datum'], ...matchedData];
+      const matchedData = locationMatcher(pbProvinces, pbCities, pbLocations, pbPrices, etCities, etLocations, etPrices);
+      const finalData = [['provincies', 'stad', 'locatie_pb', 'locatie_et', 'locatie_match', 'prijs_pb', 'prijs_et', 'prijs_verschil'], ...matchedData];
 
       xlsxFileWriter(finalData);
     } else {
-      console.log('Data length mismatch, cannot write to Excel.');
+      console.error('Amount of records scraped from partybussen.nl do not match: ' + 'Cities: ' + pbCities.length + ', Locations: ' + pbLocations.length + ', Prices: ' + pbPrices.length);
     }
   } catch (error) {
     console.log('Error: ' + error);

@@ -44,7 +44,7 @@ async function fetchBoardingLocations() {
     const etPrices = picesDouble.filter((_, index) => index % 2 === 0);
 
     if (etCities.length !== etLocations.length || etCities.length !== etPrices.length) {
-      console.error('Amount of records do not match: ' + 'Cities: ' + etCities.length + ', Lcations: ' + etLocations.length + ', Prices: ' + etPrices.length);
+      console.error('Amount of records retrieved from eleven travel do not match: ' + 'Cities: ' + etCities.length + ', Locations: ' + etLocations.length + ', Prices: ' + etPrices.length);
       return { cities: [], locations: [], prices: [] };
     }
 
