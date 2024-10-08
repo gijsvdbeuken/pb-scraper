@@ -3,13 +3,19 @@ const ExcelJS = require('exceljs');
 async function createExcelFile(data) {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Qlimax Data');
-
   const headerRow = worksheet.addRow(data[0]);
 
   let prijsVerschilColumnIndex;
   headerRow.eachCell((cell, colNumber) => {
     if (cell.value === 'prijs_verschil') {
       prijsVerschilColumnIndex = colNumber;
+    }
+  });
+
+  let locatieMatchColumnIndex;
+  headerRow.eachCell((cell, colNumber) => {
+    if (cell.value === 'locatie_match') {
+      locatieMatchColumnIndex = colNumber;
     }
   });
 
@@ -21,6 +27,19 @@ async function createExcelFile(data) {
         cell.font = { color: { argb: 'FFC4C4C4' } };
       }
     });
+
+    if (locatieMatchColumnIndex) {
+      const cell = row.getCell(locatieMatchColumnIndex);
+      const cellValue = cell.value;
+
+      if (typeof cellValue === 'string') {
+        if (cellValue == 'Sterker') {
+          cell.font = { color: { argb: 'FF00CC00' } }; // Green
+        } else if (cellValue == 'Zwakker') {
+          cell.font = { color: { argb: 'FFF0B000' } }; // Yellow
+        }
+      }
+    }
 
     if (prijsVerschilColumnIndex) {
       const cell = row.getCell(prijsVerschilColumnIndex);
@@ -46,10 +65,11 @@ async function createExcelFile(data) {
 
   const currentDate = `${day}-${month}-${year}`;
 
-  const filePath = `./output/data_${currentDate}.xlsx`;
-
+  const filePath = `./output/data_locations_${currentDate}.xlsx`;
   await workbook.xlsx.writeFile(filePath);
-  console.log('Excel file created successfully.');
+  console.log(`Excel file with location-based data created successfully at ${currentDate}.`);
+
+  //
 }
 
 module.exports = createExcelFile;

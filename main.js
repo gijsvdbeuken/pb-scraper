@@ -1,13 +1,21 @@
 const puppeteer = require('puppeteer');
-const fetchBoardingLocations = require('./api/fetchElevenTravelData');
-const xlsxFileWriter = require('./utilities/xlsxFileWriter');
+const fetchElevenTravelData = require('./api/fetchElevenTravelData');
+const xlsxLocationsFileWriter = require('./utilities/xlsxLocationsFileWriter');
+const xlsxProvincesFileWriter = require('./utilities/xlsxProvincesFileWriter');
 const locationMatcher = require('./utilities/locationMatcher');
 
 async function run() {
   const browser = await puppeteer.launch();
   const pbPage = await browser.newPage();
   const pbWebsite = 'https://www.partybussen.nl/festivals/qlimax';
-  const pbPageData = {};
+
+  /*
+  const provinceDataset = [];
+  const provinceDatasetHeaders = ['provincie', 'gem_prijs_pb', 'gem_prijs_et', 'prijs_verschil'];
+  const provinceDatasetPricePb = [];
+  const provinceDatasetPriceEt = [];
+  const provinceDatasetPriceDifference = [];
+  */
 
   const provinces = [
     { name: 'Groningen', selector: '[name="province-1"]' },
@@ -24,16 +32,68 @@ async function run() {
     { name: 'Limburg', selector: '[name="province-12"]' },
   ];
 
+  function createProvinceDataset(finalData) {
+    const provinceDatasetHeaders = ['provincie', 'gem_prijs_pb', 'gem_prijs_et', 'prijs_verschil'];
+    const provinceDatasetPricePb = [];
+    const provinceDatasetPriceEt = [];
+    const provinceDatasetPriceDifference = [];
+
+    let i = 0;
+    provinces.forEach(function (province) {
+      const targetProvince = province.name;
+      const filteredRows = finalData.filter((row) => row[0] === targetProvince);
+
+      const totalPricePb = filteredRows.reduce((sum, row) => sum + parseFloat(row[5]), 0);
+      const averagePricePb = totalPricePb / filteredRows.length;
+      const validRows = filteredRows.filter((row) => row[6] !== 'N/A');
+      const totalPriceEt = validRows.reduce((sum, row) => sum + parseFloat(row[6]), 0);
+      const averagePriceEt = totalPriceEt / validRows.length;
+
+      provinceDatasetPricePb[i] = averagePricePb.toFixed(2);
+      provinceDatasetPriceEt[i] = averagePriceEt.toFixed(2);
+
+      const priceDifference = averagePriceEt - averagePricePb;
+      provinceDatasetPriceDifference[i] = priceDifference.toFixed(2);
+      i++;
+    });
+
+    const provinceDataset = [];
+    provinceDataset[0] = provinceDatasetHeaders;
+    let j = 0;
+    provinces.forEach(function (province) {
+      let array = [];
+      array.push(province.name);
+      array.push(provinceDatasetPricePb[j]);
+      array.push(provinceDatasetPriceEt[j]);
+      array.push(provinceDatasetPriceDifference[j]);
+      provinceDataset.push(array);
+      j++;
+    });
+    xlsxProvincesFileWriter(provinceDataset);
+  }
+
   let pbProvinces = [];
   let pbCities = [];
   let pbLocations = [];
   let pbPrices = [];
 
   try {
-    await pbPage.goto(pbWebsite);
-    await pbPage.waitForSelector('.columns.small-12.medium-8');
+    try {
+      console.log('Accessing website...');
+      await pbPage.goto(pbWebsite, { timeout: 60000 });
+      console.log('Website accessed successfully');
+    } catch (error) {
+      console.error('Error accessing website:', error);
+    }
+    try {
+      console.log('Searching for selector...');
+      await pbPage.waitForSelector('.columns.small-12.medium-8', { timeout: 30000 });
+      console.log('Selector accessed successfully');
+    } catch (error) {
+      console.error('Error accessing selector:', error);
+    }
 
-    pbPageData.pageTitle = await pbPage.evaluate(() => document.title);
+    console.log('Done!');
 
     for (const province of provinces) {
       const targetCities = await pbPage.evaluate((selector) => {
@@ -67,7 +127,8 @@ async function run() {
           element.childNodes.forEach((node) => {
             if (node.nodeType === Node.TEXT_NODE) {
               text += node.textContent.trim();
-              text = text.replace(/[^0-9,]/g, '');
+              text = text.replace(',', '.');
+              text = text.replace(/[^0-9.]/g, '');
             }
           });
           return text;
@@ -82,15 +143,55 @@ async function run() {
     }
 
     if (pbCities.length == pbLocations.length && pbLocations.length == pbPrices.length) {
-      let { etCities, etLocations, etPrices } = await fetchBoardingLocations();
+      console.log('Eleven Travel data ophalen...');
+      let { etCities, etLocations, etPrices } = await fetchElevenTravelData();
 
+      console.log('Locaties matchen...');
       const matchedData = locationMatcher(pbProvinces, pbCities, pbLocations, pbPrices, etCities, etLocations, etPrices);
       const finalData = [['provincies', 'stad', 'locatie_pb', 'locatie_et', 'locatie_match', 'prijs_pb', 'prijs_et', 'prijs_verschil'], ...matchedData];
 
-      xlsxFileWriter(finalData);
+      xlsxLocationsFileWriter(finalData);
+
+      /*
+      let i = 0;
+      provinces.forEach(function (province) {
+        const targetProvince = province.name;
+        const filteredRows = finalData.filter((row) => row[0] === targetProvince);
+
+        const totalPricePb = filteredRows.reduce((sum, row) => sum + parseFloat(row[5]), 0);
+        const averagePricePb = totalPricePb / filteredRows.length;
+        const validRows = filteredRows.filter((row) => row[6] !== 'N/A');
+        const totalPriceEt = validRows.reduce((sum, row) => sum + parseFloat(row[6]), 0);
+        const averagePriceEt = totalPriceEt / validRows.length;
+
+        provinceDatasetPricePb[i] = averagePricePb.toFixed(2);
+        provinceDatasetPriceEt[i] = averagePriceEt.toFixed(2);
+
+        const priceDifference = averagePriceEt - averagePricePb;
+        provinceDatasetPriceDifference[i] = priceDifference.toFixed(2);
+        i++;
+      });
+
+      provinceDataset[0] = provinceDatasetHeaders;
+      let j = 0;
+      provinces.forEach(function (province) {
+        let array = [];
+        array.push(province.name);
+        array.push(provinceDatasetPricePb[j]);
+        array.push(provinceDatasetPriceEt[j]);
+        array.push(provinceDatasetPriceDifference[j]);
+        provinceDataset.push(array);
+        j++;
+      });
+      */
+      //xlsxProvincesFileWriter(provinceDataset);
+
+      createProvinceDataset(finalData);
     } else {
       console.error('Amount of records scraped from partybussen.nl do not match: ' + 'Cities: ' + pbCities.length + ', Locations: ' + pbLocations.length + ', Prices: ' + pbPrices.length);
     }
+
+    //
   } catch (error) {
     console.log('Error: ' + error);
   } finally {
