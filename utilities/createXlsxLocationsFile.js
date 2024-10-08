@@ -1,6 +1,6 @@
 const ExcelJS = require('exceljs');
 
-async function createExcelFile(data) {
+async function createLocationsExcelFile(data) {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Qlimax Data');
   const headerRow = worksheet.addRow(data[0]);
@@ -55,6 +55,13 @@ async function createExcelFile(data) {
         }
       }
     }
+
+    worksheet.columns.forEach((column) => {
+      const maxLength = column.values.reduce((max, value) => {
+        return Math.max(max, value ? value.toString().length : 0);
+      }, 0);
+      column.width = maxLength + 2;
+    });
   }
 
   const today = new Date();
@@ -72,4 +79,4 @@ async function createExcelFile(data) {
   //
 }
 
-module.exports = createExcelFile;
+module.exports = createLocationsExcelFile;

@@ -49,6 +49,13 @@ async function createProvincesExcelFile(data) {
     });
   }
 
+  worksheet.columns.forEach((column) => {
+    const maxLength = column.values.reduce((max, value) => {
+      return Math.max(max, value ? value.toString().length : 0);
+    }, 0);
+    column.width = maxLength + 2;
+  });
+
   const today = new Date();
 
   let day = String(today.getDate()).padStart(2, '0');
